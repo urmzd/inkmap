@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="inkmap-project" content="__SLUG__">
+<title>__TITLE__</title>
+<style>
+:root {
+  --bg: #f4f3ef;
+  --surface: #ffffff;
+  --text: #1c1b19;
+  --muted: #66635c;
+  --line: #dcd9d1;
+  --accent: #1f5fd1;
+  --accent-text: #ffffff;
+  --stage: #e4e2dc;
+  --radius: 8px;
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px;
+  --control: 40px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #151514;
+    --surface: #1f1f1d;
+    --text: #f1efe9;
+    --muted: #a8a49a;
+    --line: #383732;
+    --accent: #86adff;
+    --accent-text: #0c1730;
+    --stage: #1a1a19;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { font: 15px/1.45 var(--font); color: var(--text); background: var(--bg); }
+h1, h2, p { margin: 0; }
+h1 { font-size: 16px; font-weight: 650; }
+h2 { font-size: 13px; font-weight: 650; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.bar {
+  height: 56px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 var(--s4); background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.bar-actions { display: flex; gap: var(--s2); }
+.btn {
+  height: var(--control); display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);
+  padding: 0 var(--s4); border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--surface); font-weight: 550; cursor: pointer;
+}
+.btn.icon { width: var(--control); padding: 0; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); width: 100%; }
+.btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.btn svg, .x svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+
+.app { display: grid; grid-template-columns: minmax(0, 1fr) 304px; height: calc(100dvh - 56px); }
+.stage-wrap { position: relative; background: var(--stage); min-width: 0; min-height: 0; }
+#gl { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+#gl:active { cursor: grabbing; }
+#gl:focus-visible { outline-offset: -4px; }
+.fail { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--s5); text-align: center; color: var(--muted); }
+.fail[hidden] { display: none; }
+
+.side {
+  background: var(--surface); border-left: 1px solid var(--line);
+  padding: var(--s4); overflow-y: auto; display: flex; flex-direction: column; gap: var(--s5);
+}
+.section { display: flex; flex-direction: column; gap: var(--s3); }
+.views { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); }
+.views .btn { padding: 0 var(--s2); font-size: 14px; }
+.designs { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s2); }
+.design { position: relative; }
+.design .place {
+  display: block; width: 100%; aspect-ratio: 1; padding: 0; border: 0; border-radius: 6px;
+  overflow: hidden; cursor: pointer; background: #fff; outline: 1px solid var(--line);
+}
+.design canvas { display: block; width: 100%; height: 100%; }
+.x {
+  position: absolute; right: 2px; top: 2px; width: 24px; height: 24px; padding: 3px;
+  border: 0; border-radius: 50%; background: rgba(20, 20, 20, .72); color: #fff; cursor: pointer;
+}
+.msg { color: var(--muted); font-size: 13px; }
+.msg:empty { display: none; }
+.field { display: flex; flex-direction: column; gap: var(--s1); }
+.field label { font-size: 13px; }
+input[type="range"] { width: 100%; height: 28px; margin: 0; accent-color: var(--accent); }
+.check { display: flex; align-items: center; gap: var(--s2); min-height: var(--control); }
+.check input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+.row { display: flex; gap: var(--s2); }
+fieldset { border: 0; padding: 0; margin: 0; min-width: 0; display: flex; flex-direction: column; gap: var(--s3); }
+fieldset:disabled { opacity: .45; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+@media (max-width: 860px) {
+  .app { display: flex; flex-direction: column; height: auto; }
+  .stage-wrap { height: 62dvh; }
+  .side { border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
+  .designs { grid-template-columns: repeat(4, 1fr); }
+}
+</style>
+</head>
+<body>
+<header class="bar">
+  <h1>__TITLE__</h1>
+  <div class="bar-actions">
+    <button id="toggle" class="btn icon" type="button" aria-pressed="false" aria-label="Hide outlines" title="Hide outlines">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+    </button>
+    <button id="save" class="btn" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/></svg>
+      Save image
+    </button>
+  </div>
+</header>
+
+<main class="app">
+  <section class="stage-wrap" aria-label="3D arm model">
+    <canvas id="gl" tabindex="0" aria-label="3D model of the arm. Drag to rotate. Scroll or pinch to zoom. Arrow keys rotate. Shift and arrow keys move the selected design."></canvas>
+    <p id="fail" class="fail" hidden>This browser could not start 3D graphics. Open this page in Chrome or Safari with hardware acceleration on.</p>
+  </section>
+
+  <aside class="side">
+    <section class="section" aria-labelledby="view-h">
+      <h2 id="view-h">View</h2>
+      <div class="views" id="views"><button class="btn" type="button" data-view="whole">Whole arm</button></div>
+      <p class="msg">Hatched skin was not visible in the photos.</p>
+    </section>
+
+    <section class="section" aria-labelledby="designs-h">
+      <h2 id="designs-h">Designs</h2>
+      <button id="add" class="btn primary" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+        Add design
+      </button>
+      <input id="file" type="file" accept="image/*" multiple hidden>
+      <div id="designs" class="designs"></div>
+      <p id="msg" class="msg" role="status"></p>
+    </section>
+
+    <section class="section" aria-labelledby="selected-h">
+      <h2 id="selected-h">Selected design</h2>
+      <fieldset id="controls" disabled>
+        <legend class="visually-hidden">Selected design settings</legend>
+        <div class="field"><label for="size">Size</label><input id="size" type="range" min="15" max="250" value="60"></div>
+        <div class="field"><label for="rot">Rotation</label><input id="rot" type="range" min="-180" max="180" value="0"></div>
+        <div class="field"><label for="opacity">Opacity</label><input id="opacity" type="range" min="20" max="100" value="88"></div>
+        <label class="check"><input id="mono" type="checkbox" checked> Black and grey</label>
+        <div class="row">
+          <button id="flip" class="btn icon" type="button" aria-label="Flip" title="Flip">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18"/><path d="M8 7 3 12l5 5"/><path d="m16 7 5 5-5 5"/></svg>
+          </button>
+          <button id="remove" class="btn icon" type="button" aria-label="Remove from arm" title="Remove from arm">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="m6 7 1 13h10l1-13"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>
+          </button>
+        </div>
+      </fieldset>
+    </section>
+  </aside>
+</main>
+
+<script id="three-b64" type="text/plain">__THREE_B64__</script>
+<script id="arm-data" type="application/json">__ARM_JSON__</script>
+<script id="map-data" type="application/json">__MAP_JSON__</script>
+<script>
+(async () => {
+const $ = (s) => document.querySelector(s);
+const KEY = 'inkmap-' + (document.querySelector('meta[name=inkmap-project]')?.content || 'default'), INK = [34, 38, 44], SKIN = '#d9b9a2', OUTLINE = '#2f7bff';
+const TW = 1536, TH = 3072;
+let THREE;
+try {
+  const bytes = Uint8Array.from(atob($('#three-b64').textContent.trim()), (c) => c.charCodeAt(0));
+  THREE = await import(URL.createObjectURL(new Blob([bytes], { type: 'text/javascript' })));
+} catch (e) { $('#fail').hidden = false; return; }
+
+/* ---------- design processing ---------- */
+function processDesign(src) {
+  const sw = src.naturalWidth || src.width || 800, sh = src.naturalHeight || src.height || 800;
+  const k = Math.min(1, 900 / Math.max(sw, sh));
+  const w = Math.max(2, Math.round(sw * k)), h = Math.max(2, Math.round(sh * k));
+  const flat = document.createElement('canvas'); flat.width = w; flat.height = h;
+  const fx = flat.getContext('2d', { willReadFrequently: true });
+  fx.fillStyle = '#fff'; fx.fillRect(0, 0, w, h); fx.drawImage(src, 0, 0, w, h);
+  const data = fx.getImageData(0, 0, w, h), p = data.data, n = w * h;
+  const lum = new Uint8Array(n), hists = [0, 1, 2, 3].map(() => new Uint32Array(256));
+  for (let i = 0; i < n; i++) {
+    const L = (p[i * 4] * 54 + p[i * 4 + 1] * 183 + p[i * 4 + 2] * 19) >> 8; lum[i] = L; hists[3][L]++;
+    for (let c = 0; c < 3; c++) hists[c][p[i * 4 + c]]++;
+  }
+  const pct = (hist, q) => { let acc = 0; for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= n * q) return v; } return 255; };
+  let black = pct(hists[3], 0.01);
+  const whites = hists.map((hh) => { const v = pct(hh, 0.85); return v < 140 ? 255 : v; });
+  if (whites[3] - black < 40) { black = 0; whites.fill(255); }
+  const border = Math.max(2, Math.min(w, h) * 0.06);
+  const color = new ImageData(w, h), mono = new ImageData(w, h);
+  const lv = (c, ch) => Math.max(0, Math.min(1, (c - black) / Math.max(1, whites[ch] - black)));
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x, j = i * 4;
+    let t = Math.min(x, w - 1 - x, y, h - 1 - y) / border; t = t >= 1 ? 1 : t * t * (3 - 2 * t);
+    const L = 1 - (1 - lv(lum[i], 3)) * t;
+    for (let c = 0; c < 3; c++) {
+      color.data[j + c] = 255 * (1 - (1 - lv(p[j + c], c)) * t);
+      mono.data[j + c] = INK[c] + (255 - INK[c]) * L;
+    }
+    color.data[j + 3] = mono.data[j + 3] = 255;
+  }
+  const mk = (d) => { const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').putImageData(d, 0, 0); return c; };
+  return { color: mk(color), mono: mk(mono), flat };
+}
+function loadImage(src) { return new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = src; }); }
+
+/* ---------- sample designs ---------- */
+const P = (r, a) => [r * Math.cos(a), r * Math.sin(a)];
+function sampleCanvas(fn) {
+  const S = 800, c = document.createElement('canvas'); c.width = c.height = S;
+  const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, S, S);
+  x.strokeStyle = x.fillStyle = '#000'; x.lineCap = x.lineJoin = 'round';
+  x.translate(S / 2, S / 2); fn(x, S); return c;
+}
+function ring(x, r) { x.beginPath(); x.arc(0, 0, r, 0, Math.PI * 2); x.stroke(); }
+const SAMPLES = {
+  Mandala(x, S) {
+    const rings = [[0.06, 0.15, 8], [0.15, 0.26, 12], [0.26, 0.37, 16], [0.37, 0.46, 24]];
+    x.lineWidth = S * 0.007;
+    x.beginPath(); x.arc(0, 0, S * 0.035, 0, Math.PI * 2); x.fill();
+    for (const [a, b, n] of rings) {
+      const r0 = a * S, r1 = b * S, da = Math.PI / n;
+      ring(x, r0);
+      for (let k = 0; k < n; k++) {
+        const t = k * 2 * da;
+        x.beginPath(); x.moveTo(...P(r0, t - da));
+        x.bezierCurveTo(...P(r0 + (r1 - r0) * 0.55, t - da), ...P(r1 * 0.97, t - da * 0.35), ...P(r1, t));
+        x.bezierCurveTo(...P(r1 * 0.97, t + da * 0.35), ...P(r0 + (r1 - r0) * 0.55, t + da), ...P(r0, t + da));
+        x.stroke();
+        x.beginPath(); x.moveTo(...P(r0, t)); x.lineTo(...P(r0 + (r1 - r0) * 0.6, t)); x.stroke();
+        x.beginPath(); x.arc(...P(r0 + (r1 - r0) * 0.74, t), S * 0.006, 0, Math.PI * 2); x.fill();
+      }
+    }
+  },
+  Web(x, S) {
+    const n = 12, R = S * 0.46; x.lineWidth = S * 0.008;
+    for (let k = 0; k < n; k++) { x.beginPath(); x.moveTo(0, 0); x.lineTo(...P(R, k * 2 * Math.PI / n)); x.stroke(); }
+    for (let j = 1; j <= 6; j++) {
+      const r = R * (0.1 + j * 0.145);
+      for (let k = 0; k < n; k++) {
+        const a0 = k * 2 * Math.PI / n, a1 = (k + 1) * 2 * Math.PI / n;
+        x.beginPath(); x.moveTo(...P(r, a0)); x.quadraticCurveTo(...P(r * 0.84, (a0 + a1) / 2), ...P(r, a1)); x.stroke();
+      }
+    }
+  },
+  Compass(x, S) {
+    x.lineWidth = S * 0.008; ring(x, S * 0.44); ring(x, S * 0.4);
+    for (let k = 0; k < 32; k++) { const a = k * Math.PI / 16; x.beginPath(); x.moveTo(...P(S * 0.4, a)); x.lineTo(...P(S * (k % 4 ? 0.385 : 0.365), a)); x.stroke(); }
+    const point = (a, len, half) => {
+      const tip = P(len, a), l = P(half, a - Math.PI / 2), r = P(half, a + Math.PI / 2);
+      x.beginPath(); x.moveTo(0, 0); x.lineTo(...l); x.lineTo(...tip); x.closePath(); x.fill();
+      x.beginPath(); x.moveTo(0, 0); x.lineTo(...r); x.lineTo(...tip); x.closePath(); x.stroke();
+    };
+    for (let k = 0; k < 4; k++) point(Math.PI / 4 + k * Math.PI / 2, S * 0.24, S * 0.045);
+    for (let k = 0; k < 4; k++) point(k * Math.PI / 2, S * 0.47, S * 0.06);
+    x.fillStyle = '#fff'; x.beginPath(); x.arc(0, 0, S * 0.025, 0, Math.PI * 2); x.fill(); x.stroke();
+  },
+};
+
+/* ---------- arm shape ---------- */
+const ARM = JSON.parse($('#arm-data').textContent);
+const bin = (s, T) => new T(Uint8Array.from(atob(s), (c) => c.charCodeAt(0)).buffer);
+const aPos = bin(ARM.pos, Float32Array), aNrm8 = bin(ARM.nrm, Int8Array), aUV = bin(ARM.uv, Float32Array), aIdx = bin(ARM.idx, Uint16Array);
+const count = ARM.count, Lv = ARM.length;
+const aNrm = new Float32Array(count * 3), uvTex = new Float32Array(count * 2);
+for (let i = 0; i < count * 3; i++) aNrm[i] = aNrm8[i] / 127;
+for (let i = 0; i < count; i++) { uvTex[2 * i] = aUV[2 * i]; uvTex[2 * i + 1] = aUV[2 * i + 1] < -0.5 ? 0 : 1 - Math.max(0, Math.min(1, aUV[2 * i + 1])); }
+const geo = new THREE.BufferGeometry();
+geo.setAttribute('position', new THREE.BufferAttribute(aPos, 3));
+geo.setAttribute('normal', new THREE.BufferAttribute(aNrm, 3));
+geo.setAttribute('uv', new THREE.BufferAttribute(uvTex, 2));
+geo.setIndex(new THREE.BufferAttribute(aIdx, 1)); geo.computeBoundingBox(); geo.computeBoundingSphere();
+const wrapD = (d) => d - Math.round(d);
+const circAt = (v) => ARM.circ[Math.max(0, Math.min(ARM.circ.length - 1, Math.floor(v * ARM.circ.length)))];
+function surfaceUV(u, v) {
+  let best = 0, bd = 1e9; const C = circAt(v);
+  for (let i = 0; i < count; i++) {
+    const du = wrapD(aUV[2 * i] - u) * C, dv = (aUV[2 * i + 1] - v) * Lv, d = du * du + dv * dv;
+    if (d < bd) { bd = d; best = i; }
+  }
+  return { pos: new THREE.Vector3(aPos[3 * best], aPos[3 * best + 1], aPos[3 * best + 2]), n: new THREE.Vector3(aNrm[3 * best], aNrm[3 * best + 1], aNrm[3 * best + 2]).normalize() };
+}
+
+/* ---------- areas ---------- */
+const MAP = JSON.parse($('#map-data').textContent);
+const ZONES = Object.fromEntries(MAP.zones.map((z, i) => ['z' + i, z]));
+const loadImg = (src) => new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = src; });
+const baseImg = await loadImg(MAP.base), outlineImg = await loadImg(MAP.outline);
+
+/* ---------- model ---------- */
+const designs = new Map();
+const state = { layers: [], selected: null, outlines: true };
+let nextId = 1;
+const uid = () => 'l' + Date.now().toString(36) + (nextId++);
+const selected = () => state.layers.find((l) => l.id === state.selected) || null;
+const say = (t) => { $('#msg').textContent = t; };
+function persist() {
+  try {
+    localStorage.setItem(KEY, JSON.stringify({ layers: state.layers,
+      user: [...designs.values()].filter((d) => !d.sample).map((d) => ({ id: d.id, name: d.name, src: d.src })) }));
+  } catch (e) { say('This browser could not save the session. Your work stays until you close the page.'); }
+}
+
+/* ---------- texture ---------- */
+const texCanvas = document.createElement('canvas'); texCanvas.width = TW; texCanvas.height = TH;
+const tx = texCanvas.getContext('2d');
+function layerXform(l, ox) {
+  tx.translate((l.u + ox) * TW, l.v * TH); tx.scale(TW / circAt(l.v), TH / Lv); tx.rotate(l.rot);
+}
+function paint(showSelection = true) {
+  tx.setTransform(1, 0, 0, 1, 0, 0); tx.globalAlpha = 1; tx.globalCompositeOperation = 'source-over'; tx.filter = 'none'; tx.setLineDash([]);
+  tx.imageSmoothingQuality = 'high'; tx.drawImage(baseImg, 0, 0, TW, TH);
+  for (const l of state.layers) {
+    const d = designs.get(l.designId); if (!d) continue;
+    const img = l.mono ? d.mono : d.color, h = l.size * img.height / img.width;
+    for (const ox of [-1, 0, 1]) {
+      tx.save(); layerXform(l, ox); if (l.flip) tx.scale(-1, 1);
+      tx.globalAlpha = l.opacity; tx.globalCompositeOperation = 'multiply';
+      tx.drawImage(img, -l.size / 2, -h / 2, l.size, h); tx.restore();
+    }
+  }
+  if (state.outlines) tx.drawImage(outlineImg, 0, 0, TW, TH);
+  const l = showSelection ? selected() : null, d = l && designs.get(l.designId);
+  if (d) {
+    const h = l.size * d.mono.height / d.mono.width;
+    for (const ox of [-1, 0, 1]) { tx.save(); layerXform(l, ox); tx.strokeStyle = OUTLINE; tx.lineWidth = 0.09; tx.strokeRect(-l.size / 2, -h / 2, l.size, h); tx.restore(); }
+  }
+  texture.needsUpdate = true; render();
+}
+
+/* ---------- scene ---------- */
+const canvas = $('#gl');
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true }); }
+catch (e) { $('#fail').hidden = false; canvas.hidden = true; return; }
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(28, 1, 1, 2000);
+{ // soft studio environment
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 512; const x = c.getContext('2d');
+  const g = x.createLinearGradient(0, 0, 0, 512); g.addColorStop(0, '#f4f4f4'); g.addColorStop(0.5, '#b9b9b9'); g.addColorStop(1, '#6f6f6f');
+  x.fillStyle = g; x.fillRect(0, 0, 1024, 512); x.filter = 'blur(18px)'; x.fillStyle = '#ffffff';
+  x.fillRect(120, 60, 260, 170); x.fillRect(620, 90, 200, 130); x.fillRect(430, 20, 120, 60);
+  const t = new THREE.CanvasTexture(c); t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.SRGBColorSpace;
+  const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromEquirectangular(t).texture; t.dispose(); pm.dispose();
+}
+const texture = new THREE.CanvasTexture(texCanvas);
+texture.colorSpace = THREE.SRGBColorSpace; texture.wrapS = THREE.RepeatWrapping; texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+const clay = { roughness: 0.66, metalness: 0, clearcoat: 0.12, clearcoatRoughness: 0.7, sheen: 0.35, sheenRoughness: 0.7, sheenColor: new THREE.Color('#ffe2cf'), envMapIntensity: 0.85 };
+const arm = new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ map: texture, ...clay }));
+arm.castShadow = arm.receiveShadow = true; scene.add(arm);
+const keyLight = new THREE.DirectionalLight('#fff4ea', 2.3);
+keyLight.castShadow = true; keyLight.shadow.mapSize.set(2048, 2048);
+Object.assign(keyLight.shadow.camera, { left: -50, right: 50, top: 50, bottom: -50, near: 1, far: 400 });
+keyLight.shadow.bias = -0.0004; keyLight.shadow.normalBias = 0.6; keyLight.shadow.radius = 7;
+const rimLight = new THREE.DirectionalLight('#dfe8ff', 1.1);
+scene.add(keyLight, keyLight.target, rimLight, rimLight.target);
+
+const HOME = geo.boundingBox.getCenter(new THREE.Vector3()), BOX = geo.boundingBox.getSize(new THREE.Vector3());
+const view = { az: 2.9, pol: 1.47, rad: 200, target: HOME.clone() };
+function fitRad() { const t = Math.tan(camera.fov * Math.PI / 360); return Math.max((BOX.y / 2 + 4) / t, (Math.max(BOX.x, BOX.z) / 2 + 4) / (t * camera.aspect)) * 1.04; }
+function applyView() {
+  const sp = Math.sin(view.pol), dir = new THREE.Vector3(sp * Math.sin(view.az), Math.cos(view.pol), sp * Math.cos(view.az));
+  camera.position.copy(view.target).addScaledVector(dir, view.rad); camera.lookAt(view.target);
+  // lights follow the camera so every side gets the same studio look
+  const right = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), dir).normalize();
+  keyLight.position.copy(view.target).addScaledVector(dir, 120).addScaledVector(right, -70).add(new THREE.Vector3(0, 90, 0));
+  keyLight.target.position.copy(view.target);
+  rimLight.position.copy(view.target).addScaledVector(dir, -120).addScaledVector(right, 80).add(new THREE.Vector3(0, 30, 0));
+  rimLight.target.position.copy(view.target);
+  render();
+}
+let queued = false;
+function render() { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; renderer.render(scene, camera); }); }
+function renderNow() { queued = false; renderer.render(scene, camera); }
+function setBackground() { scene.background = new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--stage').trim()); render(); }
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', setBackground);
+let fitted = false;
+new ResizeObserver(() => {
+  const w = canvas.clientWidth, h = canvas.clientHeight; if (!w || !h) return;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  if (!fitted) { view.rad = fitRad(); fitted = true; }
+  applyView();
+}).observe(canvas);
+
+let anim = 0;
+function goTo(name) {
+  let to;
+  if (name === 'whole') to = { az: 2.9, pol: 1.47, rad: fitRad(), target: HOME.clone() };
+  else {
+    const z = ZONES[name], r = surfaceUV(z.u, z.v), n = r.n;
+    to = { az: Math.atan2(n.x, n.z), pol: Math.max(0.6, Math.min(2.5, Math.acos(n.y))), rad: 62, target: r.pos.clone() };
+  }
+  cancelAnimationFrame(anim);
+  const from = { az: view.az, pol: view.pol, rad: view.rad, target: view.target.clone() };
+  let d = (to.az - from.az) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI;
+  const dur = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 420, t0 = performance.now();
+  const step = (now) => {
+    const k = dur ? Math.min(1, (now - t0) / dur) : 1, e = k * k * (3 - 2 * k);
+    view.az = from.az + d * e; view.pol = from.pol + (to.pol - from.pol) * e; view.rad = from.rad + (to.rad - from.rad) * e;
+    view.target.lerpVectors(from.target, to.target, e); applyView();
+    if (k < 1) anim = requestAnimationFrame(step);
+  };
+  step(t0);
+}
+for (const [key, z] of Object.entries(ZONES)) { const b = document.createElement('button'); b.className = 'btn'; b.type = 'button'; b.dataset.view = key; b.textContent = z.name; $('#views').appendChild(b); }
+for (const b of document.querySelectorAll('[data-view]')) b.addEventListener('click', () => goTo(b.dataset.view));
+
+/* ---------- picking ---------- */
+const ray = new THREE.Raycaster();
+function pick(cx, cy) {
+  const r = canvas.getBoundingClientRect();
+  camera.updateMatrixWorld();
+  ray.setFromCamera(new THREE.Vector2((cx - r.left) / r.width * 2 - 1, -((cy - r.top) / r.height * 2 - 1)), camera);
+  const hit = ray.intersectObject(arm, false)[0];
+  if (!hit || !hit.uv) return null;
+  const v = 1 - hit.uv.y; return v >= 0.999 || v <= 0.001 ? null : { u: ((hit.uv.x % 1) + 1) % 1, v };
+}
+function layerAt(p) {
+  for (let i = state.layers.length - 1; i >= 0; i--) {
+    const l = state.layers[i], d = designs.get(l.designId); if (!d) continue;
+    const dx = wrapD(p.u - l.u) * circAt(l.v), dy = (p.v - l.v) * Lv, c = Math.cos(-l.rot), s = Math.sin(-l.rot);
+    const h = l.size * d.mono.height / d.mono.width;
+    if (Math.abs(dx * c - dy * s) <= l.size / 2 && Math.abs(dx * s + dy * c) <= h / 2) return l;
+  }
+  return null;
+}
+const clampV = (v) => Math.max(0.03, Math.min(0.97, v));
+
+/* ---------- controls ---------- */
+function syncControls() {
+  const l = selected(); $('#controls').disabled = !l;
+  if (l) { $('#size').value = Math.round(l.size * 10); $('#rot').value = Math.round(l.rot * 180 / Math.PI); $('#opacity').value = Math.round(l.opacity * 100); $('#mono').checked = l.mono; }
+  const t = $('#toggle'), label = state.outlines ? 'Hide outlines' : 'Show outlines';
+  t.setAttribute('aria-pressed', String(!state.outlines)); t.setAttribute('aria-label', label); t.title = label;
+}
+function select(id) { state.selected = id; syncControls(); paint(); }
+function place(designId) {
+  const d = designs.get(designId), r = canvas.getBoundingClientRect();
+  const first = Object.values(ZONES)[0] || { u: 0.5, v: 0.5 };
+  const p = pick(r.left + r.width / 2, r.top + r.height / 2) || { u: first.u, v: first.v };
+  const ar = d.mono.height / d.mono.width;
+  let size = 6;
+  for (const z of Object.values(ZONES)) {
+    if (Math.hypot(wrapD(p.u - z.u) * circAt(z.v) / (z.w / 2), (p.v - z.v) * Lv / (z.h / 2)) < 1.1) size = Math.min(z.w, z.h / ar) * 0.86;
+  }
+  const l = { id: uid(), designId, u: p.u, v: clampV(p.v), size, rot: 0, opacity: 0.88, mono: true, flip: false };
+  state.layers.push(l); say(''); select(l.id); persist();
+  canvas.scrollIntoView({ block: 'nearest' });
+}
+function removeSelected() { const i = state.layers.findIndex((l) => l.id === state.selected); if (i < 0) return; state.layers.splice(i, 1); select(null); persist(); }
+function edit(fn) { const l = selected(); if (!l) return; fn(l); paint(); persist(); }
+$('#size').addEventListener('input', (e) => edit((l) => { l.size = e.target.value / 10; }));
+$('#rot').addEventListener('input', (e) => edit((l) => { l.rot = e.target.value * Math.PI / 180; }));
+$('#opacity').addEventListener('input', (e) => edit((l) => { l.opacity = e.target.value / 100; }));
+$('#mono').addEventListener('change', (e) => edit((l) => { l.mono = e.target.checked; }));
+$('#flip').addEventListener('click', () => edit((l) => { l.flip = !l.flip; }));
+$('#remove').addEventListener('click', removeSelected);
+$('#toggle').addEventListener('click', () => { state.outlines = !state.outlines; syncControls(); paint(); });
+$('#save').addEventListener('click', () => {
+  paint(false); renderNow();
+  canvas.toBlob((b) => {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'inkmap.png';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); paint();
+  }, 'image/png');
+});
+
+/* ---------- pointer and keyboard ---------- */
+const pointers = new Map(); let gesture = null;
+canvas.addEventListener('pointerdown', (e) => {
+  canvas.setPointerCapture(e.pointerId); pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 2) { const [a, b] = [...pointers.values()]; gesture = { mode: 'pinch', d0: Math.hypot(a.x - b.x, a.y - b.y), rad0: view.rad }; return; }
+  const p = pick(e.clientX, e.clientY), l = p && layerAt(p);
+  gesture = { mode: l ? 'move' : 'orbit', x: e.clientX, y: e.clientY, moved: false, id: l && l.id, off: l && { u: wrapD(p.u - l.u), v: p.v - l.v } };
+  if (l && l.id !== state.selected) select(l.id);
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (!pointers.has(e.pointerId) || !gesture) return;
+  const prev = pointers.get(e.pointerId); pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (gesture.mode === 'pinch') {
+    const [a, b] = [...pointers.values()]; if (!b) return;
+    view.rad = Math.max(32, Math.min(380, gesture.rad0 * gesture.d0 / Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)))); applyView(); return;
+  }
+  if (Math.hypot(e.clientX - gesture.x, e.clientY - gesture.y) > 3) gesture.moved = true;
+  if (!gesture.moved) return;
+  if (gesture.mode === 'orbit') {
+    view.az -= (e.clientX - prev.x) * 0.0075; view.pol = Math.max(0.2, Math.min(Math.PI - 0.2, view.pol - (e.clientY - prev.y) * 0.0075)); applyView();
+  } else {
+    const p = pick(e.clientX, e.clientY), l = selected();
+    if (p && l) { l.u = ((p.u - gesture.off.u) % 1 + 1) % 1; l.v = clampV(p.v - gesture.off.v); paint(); }
+  }
+});
+const endPointer = (e) => {
+  pointers.delete(e.pointerId);
+  if (gesture && gesture.mode !== 'pinch') {
+    if (!gesture.moved && gesture.mode === 'orbit' && state.selected) select(null);
+    if (gesture.mode === 'move' && gesture.moved) persist();
+  }
+  if (!pointers.size) gesture = null;
+};
+canvas.addEventListener('pointerup', endPointer); canvas.addEventListener('pointercancel', endPointer);
+canvas.addEventListener('wheel', (e) => { e.preventDefault(); view.rad = Math.max(32, Math.min(380, view.rad * Math.exp(e.deltaY * 0.0012))); applyView(); }, { passive: false });
+canvas.addEventListener('keydown', (e) => {
+  const dir = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+  if (dir && e.shiftKey) edit((l) => { l.u = ((l.u + dir[0] * 0.3 / circAt(l.v)) % 1 + 1) % 1; l.v = clampV(l.v + dir[1] * 0.3 / Lv); });
+  else if (dir) { view.az += dir[0] * 0.08; view.pol = Math.max(0.2, Math.min(Math.PI - 0.2, view.pol + dir[1] * 0.08)); applyView(); }
+  else if (e.key === '+' || e.key === '=') { view.rad = Math.max(32, view.rad / 1.1); applyView(); }
+  else if (e.key === '-' || e.key === '_') { view.rad = Math.min(380, view.rad * 1.1); applyView(); }
+  else if (e.key === 'Delete' || e.key === 'Backspace') removeSelected();
+  else if (e.key === 'Escape') select(null);
+  else return;
+  e.preventDefault();
+});
+
+/* ---------- design tray ---------- */
+function addDesignTile(d) {
+  const tile = document.createElement('div'); tile.className = 'design'; tile.dataset.id = d.id;
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'place'; b.setAttribute('aria-label', `Place ${d.name}`); b.title = d.name;
+  const c = document.createElement('canvas'); c.width = c.height = 160; const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 160, 160);
+  const k = Math.min(140 / d.color.width, 140 / d.color.height), tw = d.color.width * k, th = d.color.height * k;
+  x.drawImage(d.color, (160 - tw) / 2, (160 - th) / 2, tw, th);
+  b.appendChild(c); b.addEventListener('click', () => place(d.id)); tile.appendChild(b);
+  if (!d.sample) {
+    const r = document.createElement('button'); r.type = 'button'; r.className = 'x'; r.setAttribute('aria-label', `Delete ${d.name}`); r.title = `Delete ${d.name}`;
+    r.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg>';
+    r.addEventListener('click', () => { designs.delete(d.id); tile.remove(); state.layers = state.layers.filter((l) => l.designId !== d.id); select(null); persist(); });
+    tile.appendChild(r);
+  }
+  const host = $('#designs');
+  if (d.sample) { tile.dataset.sample = '1'; host.appendChild(tile); } else host.insertBefore(tile, host.querySelector('.design[data-sample]') || null);
+}
+function registerDesign(id, name, source, sample, src) { const d = { id, name, sample, src, ...processDesign(source) }; designs.set(id, d); addDesignTile(d); return d; }
+async function addFiles(files) {
+  let last = null; const failed = [];
+  for (const file of files) {
+    const url = URL.createObjectURL(file);
+    try {
+      const d = registerDesign('u' + Date.now().toString(36) + (nextId++), file.name.replace(/\.[^.]+$/, '') || 'Design', await loadImage(url), false, null);
+      d.src = d.flat.toDataURL('image/jpeg', 0.9); last = d;
+    } catch (e) { failed.push(file.name); }
+    URL.revokeObjectURL(url);
+  }
+  say(failed.length ? `Could not read ${failed.join(', ')}. Use a PNG, JPG or SVG file.` : '');
+  if (last) place(last.id); else persist();
+}
+$('#add').addEventListener('click', () => $('#file').click());
+$('#file').addEventListener('change', (e) => { addFiles([...e.target.files]); e.target.value = ''; });
+window.addEventListener('dragover', (e) => e.preventDefault());
+window.addEventListener('drop', (e) => { e.preventDefault(); if (e.dataTransfer.files.length) addFiles([...e.dataTransfer.files]); });
+window.addEventListener('paste', (e) => { const fs = [...e.clipboardData.files].filter((f) => f.type.startsWith('image/')); if (fs.length) addFiles(fs); });
+
+/* ---------- start ---------- */
+for (const [name, fn] of Object.entries(SAMPLES)) registerDesign('s-' + name.toLowerCase(), name, sampleCanvas(fn), true, null);
+let saved = null;
+try { saved = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+if (saved) {
+  for (const u of saved.user || []) { try { registerDesign(u.id, u.name, await loadImage(u.src), false, u.src); } catch (e) {} }
+  state.layers = (saved.layers || []).filter((l) => designs.has(l.designId));
+}
+setBackground(); syncControls(); paint();
+window.inkmap = { state, view, goTo, applyView, paint, renderNow, pick, select, persist, ZONES, designs, surfaceUV };
+})();
+</script>
+</body>
+</html>

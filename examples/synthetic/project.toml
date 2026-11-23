@@ -1,0 +1,24 @@
+# A synthetic arm: three drawn photos, one from each side.
+# Build it with:  inkmap build examples/synthetic/project.toml --out out/synthetic.html
+#
+# Each point is [x, y, half_width, v, u]:
+#   x, y        centre of the arm in the photo, in pixels
+#   half_width  half the arm width at that place, in pixels
+#   v           position along the arm: 0 shoulder, 0.5 elbow, 1 wrist
+#   u           the part of the arm that faces the camera:
+#               0 front, 0.25 outer, 0.5 back, 0.75 inner
+# List the points from the shoulder end to the wrist end.
+
+name = "Synthetic arm"
+
+[[photo]]
+file = "front-outer.png"
+points = [[240, 70, 105, 0.08, 0.2], [240, 890, 105, 0.96, 0.2]]
+
+[[photo]]
+file = "back.png"
+points = [[240, 70, 105, 0.08, 0.5], [240, 890, 105, 0.96, 0.5]]
+
+[[photo]]
+file = "inner.png"
+points = [[240, 70, 105, 0.08, 0.8], [240, 890, 105, 0.96, 0.8]]
