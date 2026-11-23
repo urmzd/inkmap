@@ -5,3 +5,7 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Wait two weeks before proposing a new release. A release that is only days old has not
+    # been vetted by anyone. Security updates are not delayed by this.
+    cooldown:
+      default-days: 14
