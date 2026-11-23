@@ -10,6 +10,7 @@
 # List the points from the shoulder end to the wrist end.
 
 name = "Synthetic arm"
+part = "left-arm"
 
 [[photo]]
 file = "front-outer.png"
@@ -22,3 +23,7 @@ points = [[240, 70, 105, 0.08, 0.5], [240, 890, 105, 0.96, 0.5]]
 [[photo]]
 file = "inner.png"
 points = [[240, 70, 105, 0.08, 0.8], [240, 890, 105, 0.96, 0.8]]
+
+# The gaps between the forearm bands are skin too, but too narrow for a design.
+[detect]
+min_radius_cm = 0.9

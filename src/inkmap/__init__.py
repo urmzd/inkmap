@@ -1,4 +1,4 @@
-"""Map photos of existing tattoos onto a 3D arm and find the bare skin."""
+"""Map photos of existing tattoos onto a 3D body model and find the bare skin."""
 
 from importlib.metadata import PackageNotFoundError, version
 

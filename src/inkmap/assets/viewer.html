@@ -118,15 +118,15 @@ fieldset:disabled { opacity: .45; }
 </header>
 
 <main class="app">
-  <section class="stage-wrap" aria-label="3D arm model">
-    <canvas id="gl" tabindex="0" aria-label="3D model of the arm. Drag to rotate. Scroll or pinch to zoom. Arrow keys rotate. Shift and arrow keys move the selected design."></canvas>
+  <section class="stage-wrap" aria-label="3D __PART__ model">
+    <canvas id="gl" tabindex="0" aria-label="3D model of the __PART__. Drag to rotate. Scroll or pinch to zoom. Arrow keys rotate. Shift and arrow keys move the selected design."></canvas>
     <p id="fail" class="fail" hidden>This browser could not start 3D graphics. Open this page in Chrome or Safari with hardware acceleration on.</p>
   </section>
 
   <aside class="side">
     <section class="section" aria-labelledby="view-h">
       <h2 id="view-h">View</h2>
-      <div class="views" id="views"><button class="btn" type="button" data-view="whole">Whole arm</button></div>
+      <div class="views" id="views"><button class="btn" type="button" data-view="whole">Whole __PART__</button></div>
       <p class="msg">Hatched skin was not visible in the photos.</p>
     </section>
 
@@ -153,7 +153,7 @@ fieldset:disabled { opacity: .45; }
           <button id="flip" class="btn icon" type="button" aria-label="Flip" title="Flip">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18"/><path d="M8 7 3 12l5 5"/><path d="m16 7 5 5-5 5"/></svg>
           </button>
-          <button id="remove" class="btn icon" type="button" aria-label="Remove from arm" title="Remove from arm">
+          <button id="remove" class="btn icon" type="button" aria-label="Remove from __PART__" title="Remove from __PART__">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="m6 7 1 13h10l1-13"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>
           </button>
         </div>
@@ -265,7 +265,7 @@ const SAMPLES = {
   },
 };
 
-/* ---------- arm shape ---------- */
+/* ---------- mesh ---------- */
 const ARM = JSON.parse($('#arm-data').textContent);
 const bin = (s, T) => new T(Uint8Array.from(atob(s), (c) => c.charCodeAt(0)).buffer);
 const aPos = bin(ARM.pos, Float32Array), aNrm8 = bin(ARM.nrm, Int8Array), aUV = bin(ARM.uv, Float32Array), aIdx = bin(ARM.idx, Uint16Array);

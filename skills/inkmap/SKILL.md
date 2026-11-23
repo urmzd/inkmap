@@ -1,10 +1,11 @@
 ---
 name: inkmap
 description: >
-  Map photos or a video of a tattooed arm onto a 3D model with the inkmap CLI: pull sharp
-  frames, place control points, build the viewer, and check the result. Use when someone
-  wants to see their existing tattoos on a 3D arm, find the bare skin left for new work,
-  or try a design on the arm before a session. Do NOT use for drawing the design itself.
+  Map photos or a video of a tattooed body part onto a 3D model with the inkmap CLI: pull
+  sharp frames, place control points, build the viewer, and check the result. Use when
+  someone wants to see their existing tattoos in 3D, find the bare skin left for new work,
+  or try a design on the body before a session. The arm is the only part supported so far.
+  Do NOT use for drawing the design itself.
 argument-hint: "<video or photo folder>"
 metadata:
   title: Map tattoos with inkmap
@@ -15,8 +16,12 @@ metadata:
 
 ## What you produce
 
-One HTML page with a 3D arm that carries the person's existing ink, outlines around the bare
-areas, and controls to place new designs. It works offline and can be sent to a tattoo artist.
+One HTML page with a 3D body part that carries the person's existing ink, outlines around the
+bare areas, and controls to place new designs. It works offline and can be sent to a tattoo
+artist.
+
+inkmap is built for the whole body and starts with the arm. The steps below use the arm.
+Check the body parts table in the README before you promise another part.
 
 ## Steps
 
@@ -26,8 +31,8 @@ areas, and controls to place new designs. It works offline and can be sent to a 
 3. **Choose three to five frames.** Each must show a different side. Prefer frames where the
    arm is sharp and fully in view. Look at every frame yourself before you choose.
 4. **Read coordinates.** `inkmap grid frames/frame-00168.png` writes a copy with a pixel grid.
-5. **Write the project file.** One `[[photo]]` table per frame, with points from the shoulder
-   end to the wrist end. See the format below.
+5. **Write the project file.** Set `part = "left-arm"`. Add one `[[photo]]` table per frame,
+   with points from the shoulder end to the wrist end. See the format below.
 6. **Build.** `inkmap build project.toml --out arm.html --debug debug`
 7. **Check the strips.** Open `debug/strip-<photo>.jpg`. Fix the points and build again until
    each strip passes the checks below.
@@ -76,12 +81,13 @@ Rules:
 
 - **Patterns continue across photos.** A step at a seam means the `u` values disagree.
 - **Outlines sit on skin you would call bare.** If they sit on highlights inside a dense
-  piece, lower `max_v` or `max_ink` in a `[detect]` table.
+  piece, lower `max_ink` in a `[detect]` table. If a whole region is covered all round, such
+  as a full forearm piece, set `max_v` to stop the search above it.
 - **A bare area you can see has no outline.** Raise `max_edges` a little. Shadows on a bony
   elbow raise the edge count.
 
 ## Limits to state
 
-- Left arm only. A generic arm, not a scan.
+- One body part so far: the left arm. A generic model, not a scan.
 - Positions can be off by a few centimetres.
 - Never commit or upload the person's photos or map.

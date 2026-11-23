@@ -16,7 +16,7 @@ from inkmap import __version__
 REPO = "urmzd/inkmap"
 
 app = typer.Typer(
-    help="Map photos of existing tattoos onto a 3D arm and find the bare skin.",
+    help="Map photos of existing tattoos onto a 3D body model and find the bare skin.",
     no_args_is_help=True,
     add_completion=False,
 )
@@ -65,7 +65,7 @@ def main_options(
 
 @app.command()
 def frames(
-    video: Annotated[Path, typer.Argument(help="Video of the arm turning.")],
+    video: Annotated[Path, typer.Argument(help="Video of the body part turning.")],
     out: Annotated[Path, typer.Option("--out", "-o", help="Folder for the frames.")] = Path(
         "frames"
     ),

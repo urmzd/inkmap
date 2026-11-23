@@ -1,8 +1,8 @@
 # inkmap
 
-> Map photos of existing tattoos onto a 3D arm, find the bare skin, and try new designs on it. A Python CLI that writes one self-contained HTML viewer.
+> Map photos of existing tattoos onto a 3D body model, find the bare skin, and try new designs on it. A Python CLI that writes one self-contained HTML viewer. The arm is the first supported body part.
 
-inkmap takes photos of an arm plus hand-placed control points, unwraps each photo onto a flat sleeve map, separates ink from skin, outlines the bare areas, and bakes the result into a 3D viewer page that works offline.
+inkmap takes photos of a body part plus hand-placed control points, unwraps each photo onto a flat skin map, separates ink from skin, outlines the bare areas, and bakes the result into a 3D viewer page that works offline.
 
 ## Docs
 
@@ -12,7 +12,8 @@ inkmap takes photos of an arm plus hand-placed control points, unwraps each phot
 
 ## Source
 
-- [unwrap.py](https://github.com/urmzd/inkmap/blob/main/src/inkmap/unwrap.py): photo to sleeve map, ink extraction, bare-area detection
+- [parts.py](https://github.com/urmzd/inkmap/blob/main/src/inkmap/parts.py): the supported body parts
+- [unwrap.py](https://github.com/urmzd/inkmap/blob/main/src/inkmap/unwrap.py): photo to skin map, ink extraction, bare-area detection
 - [viewer.html](https://github.com/urmzd/inkmap/blob/main/src/inkmap/assets/viewer.html): the 3D viewer template
 - [extract_arm.py](https://github.com/urmzd/inkmap/blob/main/scripts/extract_arm.py): builds the arm mesh from the MakeHuman base mesh
 
