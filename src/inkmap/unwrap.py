@@ -1,11 +1,11 @@
-"""Unwrap photos of an arm onto a flat sleeve map, then find the bare skin.
+"""Unwrap photos of a body part onto a flat skin map, then find the bare skin.
 
-The sleeve map is a grid over (v, u):
+The skin map is a grid over (v, u):
 
-- v runs along the arm: 0 at the shoulder, 0.5 at the elbow, 1 at the wrist.
-- u runs around the arm: 0 front, 0.25 outer, 0.5 back (the elbow point), 0.75 inner.
+- v runs along the part. For an arm: 0 at the shoulder, 0.5 at the elbow, 1 at the wrist.
+- u runs around it: 0 front, 0.25 outer, 0.5 back (for an arm, the elbow point), 0.75 inner.
 
-Seen from outside with the shoulder at the top, u grows to the viewer's right.
+Seen from outside with v = 0 at the top, u grows to the viewer's right.
 Each photo is treated as a view of a cylinder: a point at angle t from the centre
 line appears at ``centre + across * half_width * sin(t)``.
 """
@@ -23,6 +23,7 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage as ndi
 
+from inkmap.parts import LEFT_ARM, Part
 from inkmap.project import Detect, Photo, Project
 
 U, V = 720, 1440  # texels around the arm, and from shoulder to wrist
@@ -31,19 +32,18 @@ SKIN = np.array([217.0, 185.0, 162.0])
 INK = np.array([44.0, 46.0, 52.0])
 UNSEEN = np.array([178.0, 166.0, 158.0])
 OUTLINE_RGB = (47, 123, 255)
-WRIST_END = 0.975  # the sleeve stops here; the hand stays plain skin
 
 
 @dataclass(frozen=True)
-class Arm:
-    """What the map needs to know about the 3D arm: its size."""
+class Surface:
+    """What the map needs to know about the 3D mesh of a part: its size."""
 
     circumference_cm: np.ndarray  # one value per row of the map
     length_cm: float
 
     @classmethod
-    def load(cls, name: str = "arm-left.json") -> Arm:
-        data = json.loads(resources.files("inkmap.assets").joinpath(name).read_text())
+    def load(cls, part: Part = LEFT_ARM) -> Surface:
+        data = json.loads(resources.files("inkmap.assets").joinpath(part.mesh).read_text())
         bins = np.asarray(data["circ"], float)
         rows = np.interp(np.linspace(0, 1, V), (np.arange(len(bins)) + 0.5) / len(bins), bins)
         return cls(circumference_cm=rows, length_cm=float(data["length"]))
@@ -141,8 +141,9 @@ def _ink(lum: np.ndarray, ok: np.ndarray) -> np.ndarray:
     return np.clip((ink - 0.07) / 0.5, 0, 1)
 
 
-def build_map(project: Project, arm: Arm | None = None) -> SleeveMap:
-    arm = arm or Arm.load()
+def build_map(project: Project, surface: Surface | None = None) -> SleeveMap:
+    part = project.part
+    surface = surface or Surface.load(part)
     total = np.zeros((V, U))
     wsum = np.zeros((V, U))
     cover = np.zeros((V, U))
@@ -158,16 +159,16 @@ def build_map(project: Project, arm: Arm | None = None) -> SleeveMap:
     ink = np.where(wsum > 0, total / np.maximum(wsum, 1e-9), 0)
     ink = ndi.gaussian_filter(ink, 0.8)
     seen = ndi.binary_closing(cover > 0.12, iterations=3)
-    past_wrist = np.linspace(0, 1, V) > WRIST_END
-    ink[past_wrist] = 0
-    seen[past_wrist] = True
+    past_end = np.linspace(0, 1, V) > part.end_v  # for an arm: the hand stays plain skin
+    ink[past_end] = 0
+    seen[past_end] = True
 
-    bare, areas = find_bare(ink, seen, arm, project.detect)
+    bare, areas = find_bare(ink, seen, surface, project.detect, part)
     return SleeveMap(ink=ink, seen=seen, bare=bare, areas=areas, strips=strips)
 
 
 def find_bare(
-    ink: np.ndarray, seen: np.ndarray, arm: Arm, cfg: Detect
+    ink: np.ndarray, seen: np.ndarray, surface: Surface, cfg: Detect, part: Part = LEFT_ARM
 ) -> tuple[np.ndarray, tuple[Area, ...]]:
     """Bare skin is seen, light, free of hard edges, and wide enough to hold a design.
 
@@ -182,8 +183,8 @@ def find_bare(
     bare = seen & (density < cfg.max_ink) & (edges < cfg.max_edges)
     bare &= (vs > 0.03) & (vs < cfg.max_v)
 
-    cm_v = arm.length_cm / V
-    cm_u = float(arm.circumference_cm.mean()) / U
+    cm_v = surface.length_cm / V
+    cm_u = float(surface.circumference_cm.mean()) / U
     ry, rx = max(1, int(cfg.min_radius_cm / cm_v)), max(1, int(cfg.min_radius_cm / cm_u))
     yy, xx = np.mgrid[-ry : ry + 1, -rx : rx + 1]
     disc = (yy / ry) ** 2 + (xx / rx) ** 2 <= 1
@@ -208,10 +209,10 @@ def find_bare(
         keep[ys, xs % U] = True
         v = ys.mean() / V
         u = (centre / U) % 1
-        circ = float(np.interp(v, np.linspace(0, 1, V), arm.circumference_cm))
+        circ = float(np.interp(v, np.linspace(0, 1, V), surface.circumference_cm))
         w = (np.percentile(xs, 95) - np.percentile(xs, 5)) / U * circ
-        h = (np.percentile(ys, 95) - np.percentile(ys, 5)) / V * arm.length_cm
-        found.append(Area(name=_name(u, v), u=float(u), v=float(v), w=w, h=h, area=area))
+        h = (np.percentile(ys, 95) - np.percentile(ys, 5)) / V * surface.length_cm
+        found.append(Area(name=part.area_name(u, v), u=float(u), v=float(v), w=w, h=h, area=area))
 
     found.sort(key=lambda a: -a.area)
     found = found[: cfg.max_areas]
@@ -222,19 +223,6 @@ def find_bare(
         suffix = f" {counts[a.name]}" if counts[a.name] > 1 else ""
         named.append(Area(a.name + suffix, a.u, a.v, a.w, a.h, a.area))
     return keep, tuple(named)
-
-
-def _name(u: float, v: float) -> str:
-    part = "Upper arm" if v < 0.42 else "Elbow" if v < 0.6 else "Forearm"
-    if u < 0.125 or u >= 0.875:
-        side = "front"
-    elif u < 0.375:
-        side = "outer"
-    elif u < 0.625:
-        side = "back"
-    else:
-        side = "inner"
-    return f"{part}, {side}"
 
 
 def render_base(m: SleeveMap) -> Image.Image:

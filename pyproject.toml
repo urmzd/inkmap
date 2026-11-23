@@ -1,7 +1,7 @@
 [project]
 name = "inkmap"
 version = "0.1.0"
-description = "Map photos of existing tattoos onto a 3D arm, find the bare skin, and try new designs on it."
+description = "Map photos of existing tattoos onto a 3D body model, find the bare skin, and try new designs on it."
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.12"

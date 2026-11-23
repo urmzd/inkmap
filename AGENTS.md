@@ -2,7 +2,9 @@
 
 ## Identity
 
-**inkmap** maps photos of existing tattoos onto a 3D arm, finds the bare skin, and lets a person try new designs on it. It is a Python CLI that writes one self-contained HTML viewer.
+**inkmap** maps photos of existing tattoos onto a 3D body model, finds the bare skin, and lets a person try new designs on it. It is a Python CLI that writes one self-contained HTML viewer.
+
+The arm is the first body part. The design goal is the whole body: each further part is a feature added on the same pipeline, not a fork of it. Keep arm-specific words and numbers in `parts.py` and in project files, never in `unwrap.py` or the viewer.
 
 ## Architecture
 
@@ -11,17 +13,18 @@ video ──frames──▶ photos ──grid──▶ project.toml (control poi
                                         │
                                       build
                                         │
-        photo + points ──unwrap──▶ strip per photo ──stitch──▶ sleeve map (ink, seen)
+        photo + points ──unwrap──▶ strip per photo ──stitch──▶ skin map (ink, seen)  
                                                                    │
                                                               find bare areas
                                                                    │
-              arm mesh + three.js + map ──────────────────▶ one viewer.html
+             part mesh + three.js + map ──────────────────▶ one viewer.html
 ```
 
-- **Sleeve map.** A grid over `(v, u)`. `v` runs along the arm: 0 shoulder, 0.5 elbow, 1 wrist. `u` runs around it: 0 front, 0.25 outer, 0.5 back, 0.75 inner. Everything meets in this space: photos unwrap into it, the mesh carries it as texture coordinates, and the viewer draws designs in it.
+- **Parts.** `parts.py` lists the body parts. A part is a mesh file plus the words for places on it. A project file picks one with `part = "left-arm"`.
+- **Skin map.** A grid over `(v, u)`, the same for every part. `v` runs along the part and `u` runs around it. For the arm: `v` is 0 shoulder, 0.5 elbow, 1 wrist, and `u` is 0 front, 0.25 outer, 0.5 back, 0.75 inner. Everything meets in this space: photos unwrap into it, the mesh carries it as texture coordinates, and the viewer draws designs in it.
 - **Unwrap.** Each photo is a view of a cylinder. A texel at angle `t` from the centre line samples the pixel at `centre + across * half_width * sin(t)`. Only the middle 144 degrees are used.
 - **Stitch.** Where photos overlap, the most face-on one wins (weight to the fourth power). Averaging gives ghosts, because the hand-placed points never agree exactly.
-- **Viewer.** The page paints the baked map, then the user's designs, then the outlines, onto one canvas texture. Designs are drawn in centimetres, so they keep their shape where the arm gets thinner.
+- **Viewer.** The page paints the baked map, then the user's designs, then the outlines, onto one canvas texture. Designs are drawn in centimetres, so they keep their shape where the part gets thinner.
 
 Use `tree` and `rg` to find files. Do not add a directory listing here.
 
@@ -60,8 +63,13 @@ uv run --no-project --with numpy --with trimesh --with scipy --with networkx --w
 
 ## Extension Guide
 
-- **A new body part.** Add a mesh JSON next to `arm-left.json` with the same fields (`pos`, `nrm`, `uv`, `idx`, `circ`, `length`). The `uv` attribute must hold the same `(u, v)` sleeve coordinates. Then pass the mesh name through `Arm.load` and `viewer.build_html`.
+- **A new limb (right arm, leg).** A limb fits the cylinder model, so only data changes:
+  1. Add a mesh JSON next to `arm-left.json` with the same fields (`pos`, `nrm`, `uv`, `idx`, `circ`, `length`). The `uv` attribute must hold `(u, v)` skin coordinates. `scripts/extract_arm.py` shows every step for the arm.
+  2. Add a `Part` to `parts.py`: key, viewer label, mesh file, section names along `v`, side names around `u`, and where the mapped skin ends.
+  3. Add a row to the README table and a test for the names.
 - **A right arm.** Mirror the mesh in x and replace `u` with `1 - u`. Then check with a letter "F" design that nothing shows mirrored.
+- **A flat region (back, chest).** The cylinder unwrap does not fit. Add a second unwrap in `unwrap.py` that maps a photo through a plane or a low-order surface into the same `(v, u)` grid, and let the part choose its unwrap. Stitching, detection and the viewer stay as they are.
+- **Several parts in one page.** Not built. The viewer loads one mesh and one map. Keep the map keyed by part when you add this.
 - **Automatic control points.** This is the largest gap. Any method must output the same `[x, y, half_width, v, u]` rows, so the rest of the pipeline does not change.
 - **A new detection rule.** Add a key to `Detect` in `project.py`, use it in `find_bare`, and add a row to the README table.
 
@@ -83,7 +91,7 @@ These cost time to learn. Read them before you change the mapping.
 ### Finding bare skin
 
 - **Ink has hard edges. Shadows do not.** Darkness alone cannot tell a shaded elbow from a tattoo. Edge density can.
-- **Highlights inside realism work are not bare skin.** A dense forearm piece has skin-toned highlights. `max_v` stops the search above the forearm for that reason. Lower it or raise it per person.
+- **Highlights inside realism work are not bare skin.** A dense forearm piece has skin-toned highlights that pass every test. When a region is covered all round, set `max_v` in that person's project file to stop the search above it. The default searches the whole part.
 - **Unknown is not bare.** Skin that no photo showed must stay hatched. Filling it with skin colour looks finished and is wrong.
 - **Normalise against local skin tone.** Lighting changes along and around the arm. Ink is measured as "darker than the brightest skin nearby", not as an absolute grey.
 

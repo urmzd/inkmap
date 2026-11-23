@@ -1,7 +1,9 @@
 <p align="center">
   <h1 align="center">inkmap</h1>
   <p align="center">
-    Map photos of existing tattoos onto a 3D arm, find the bare skin, and try new designs on it.
+    Map photos of existing tattoos onto a 3D body model, find the bare skin, and try new designs on it.
+    <br />
+    The arm is the first body part. More follow.
     <br /><br />
     <a href="#installation">Install</a>
     &middot;
@@ -27,11 +29,12 @@
 
 ## Features
 
-- **Photo to sleeve map.** Unwraps each photo of the arm onto a flat map of the skin and stitches the views together.
+- **Photo to skin map.** Unwraps each photo of a body part onto a flat map of the skin and stitches the views together.
 - **Existing ink, kept rough.** Separates ink from skin tone and lighting, so the old tattoos sit on the model as a grey layer.
 - **Bare skin, outlined.** Finds the areas that are free of ink and wide enough to hold a design.
 - **No guessing.** Skin that no photo showed is hatched as unknown. It is never drawn as bare.
-- **Try designs in 3D.** Drop a PNG, JPG or SVG on the arm, then move, size and rotate it along the skin.
+- **Try designs in 3D.** Drop a PNG, JPG or SVG on the model, then move, size and rotate it along the skin.
+- **Built around body parts.** Every part shares one skin coordinate system, so a new part is a new mesh, not a new tool.
 - **One file to share.** The viewer is a single HTML page that works offline. Send it to your artist.
 
 ## Installation
@@ -66,12 +69,12 @@ uv run inkmap build examples/synthetic/project.toml --out out/synthetic.html
 open out/synthetic.html
 ```
 
-Map your own arm:
+Map your own body part (today: the left arm):
 
 ```sh
 inkmap frames arm-video.mp4 --out frames --count 12   # sharpest stills from a video
 inkmap grid frames/frame-00168.png                    # pixel grid, to read coordinates
-$EDITOR project.toml                                  # say where the arm is in each photo
+$EDITOR project.toml                                  # name the body part, say where it is in each photo
 inkmap build project.toml --out arm.html --debug debug
 open arm.html
 ```
@@ -99,7 +102,7 @@ Add `--format json` before the command to get the result as JSON on stdout.
 
 ### The project file
 
-A project is a TOML file that lists the photos and says where the arm is in each one.
+A project is a TOML file that names the body part, lists the photos, and says where the part is in each one.
 
 <!-- fsrc src="examples/synthetic/project.toml" fence="auto" -->
 ```toml
@@ -115,6 +118,7 @@ A project is a TOML file that lists the photos and says where the arm is in each
 # List the points from the shoulder end to the wrist end.
 
 name = "Synthetic arm"
+part = "left-arm"
 
 [[photo]]
 file = "front-outer.png"
@@ -127,10 +131,14 @@ points = [[240, 70, 105, 0.08, 0.5], [240, 890, 105, 0.96, 0.5]]
 [[photo]]
 file = "inner.png"
 points = [[240, 70, 105, 0.08, 0.8], [240, 890, 105, 0.96, 0.8]]
+
+# The gaps between the forearm bands are skin too, but too narrow for a design.
+[detect]
+min_radius_cm = 0.9
 ```
 <!-- /fsrc -->
 
-The two coordinates on the skin:
+The two coordinates on the skin, shown for the arm:
 
 ```text
         v = 0    shoulder                 u, seen from above the shoulder
@@ -143,6 +151,19 @@ The two coordinates on the skin:
 
 The point of the elbow is always `u = 0.5`. Use it as the anchor when you decide which side a photo shows.
 
+### Body parts
+
+Set `part` in the project file. The default is `left-arm`.
+
+| Part | Key | Status |
+|------|-----|--------|
+| Left arm, shoulder to wrist | `left-arm` | Supported |
+| Right arm | | Not yet |
+| Legs | | Not yet |
+| Back, chest, torso | | Not yet |
+
+Limbs fit the same model as the arm. Flat regions need a different way to unwrap a photo. See the [extension guide](AGENTS.md#extension-guide).
+
 ## Configuration
 
 An optional `[detect]` table tunes how bare skin is found.
@@ -153,15 +174,15 @@ An optional `[detect]` table tunes how bare skin is found.
 | `max_edges` | `0.021` | Skin with more hard edges than this is not bare. Ink has edges, shadows do not |
 | `min_radius_cm` | `0.5` | A bare area must hold a circle of this radius |
 | `min_area_cm2` | `5.0` | Smaller areas are dropped |
-| `max_v` | `0.62` | Search from the shoulder down to here. Past it the forearm is treated as covered |
+| `max_v` | `0.965` | Search from `v = 0` down to here. Lower it to skip a region that is covered all round, such as a full forearm piece |
 | `max_areas` | `7` | Keep the largest ones |
 
 ## Limits
 
-- **Left arm only.** The bundled model is a left arm in a relaxed bend.
-- **You place the arm by hand.** inkmap does not detect the arm in a photo. You give it points.
-- **The model is generic.** It is a standard arm, not a scan, so sizes in centimetres are estimates.
-- **A photo is treated as a view of a cylinder.** Expect positions to be off by a few centimetres.
+- **One body part so far.** See the table above.
+- **You place the part by hand.** inkmap does not detect the body in a photo. You give it points.
+- **The model is generic.** It is a standard body, not a scan, so sizes in centimetres are estimates.
+- **A photo of a limb is treated as a view of a cylinder.** Expect positions to be off by a few centimetres.
 - **Rough source, rough map.** Video frames at 720p give a blurred ink layer.
 
 ## Privacy

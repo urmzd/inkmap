@@ -1,4 +1,4 @@
-"""Project file: which photos to use and where the arm is in each one."""
+"""Project file: which body part, which photos, and where the part is in each photo."""
 
 from __future__ import annotations
 
@@ -7,14 +7,17 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from inkmap import parts
+from inkmap.parts import Part
+
 
 @dataclass(frozen=True)
 class Point:
-    """One station along the arm in a photo.
+    """One station along the body part in a photo.
 
-    x, y: centre of the arm in pixels. half_width: half the arm width in pixels,
-    measured across the arm. v: position along the arm (0 shoulder, 0.5 elbow, 1 wrist).
-    u: which part of the arm faces the camera at the centre line
+    x, y: centre of the part in pixels. half_width: half its width in pixels, measured
+    across it. v: position along the part (for an arm: 0 shoulder, 0.5 elbow, 1 wrist).
+    u: which side faces the camera at the centre line
     (0 front, 0.25 outer, 0.5 back, 0.75 inner).
     """
 
@@ -43,7 +46,7 @@ class Detect:
     max_edges: float = 0.021
     min_radius_cm: float = 0.5
     min_area_cm2: float = 5.0
-    max_v: float = 0.62
+    max_v: float = 0.965
     max_areas: int = 7
 
 
@@ -52,6 +55,7 @@ class Project:
     name: str
     root: Path
     photos: tuple[Photo, ...]
+    part: Part = parts.LEFT_ARM
     detect: Detect = field(default_factory=Detect)
 
     @property
@@ -73,6 +77,10 @@ def load(path: Path) -> Project:
         raise ProjectError(f"{path}: {e}") from e
 
     root = path.parent
+    try:
+        part = parts.get(str(data.get("part", parts.DEFAULT)))
+    except KeyError as e:
+        raise ProjectError(f"{path}: {e.args[0]}") from e
     raw_photos = data.get("photo", [])
     if not raw_photos:
         raise ProjectError(f"{path}: add at least one [[photo]] table")
@@ -92,7 +100,7 @@ def load(path: Path) -> Project:
         points = tuple(Point(*map(float, r)) for r in rows)
         vs = [p.v for p in points]
         if vs != sorted(vs) or len(set(vs)) != len(vs):
-            raise ProjectError(f"{path}: photo {i}: list points from shoulder to wrist (v rising)")
+            raise ProjectError(f"{path}: photo {i}: list points in order, with v rising")
         photos.append(Photo(file=file, points=points))
 
     known = Detect.__dataclass_fields__
@@ -103,5 +111,6 @@ def load(path: Path) -> Project:
         name=str(data.get("name", path.stem)),
         root=root,
         photos=tuple(photos),
+        part=part,
         detect=Detect(**data.get("detect", {})),
     )
